@@ -17,7 +17,7 @@
 cradle_w = 18;
 cradle_d = 14;
 cradle_depth = 10;
-cradle_taper = 0.8;
+cradle_taper = 0.55;
 wall = 2.5;
 slot_w = 3;
 
@@ -66,7 +66,7 @@ module ell(w, h, ht) {
     circle(d = w);
 }
 
-// Heavily rounded rectangle (for cradle: rounded but not fully elliptical)
+// Rounded rectangle cross-section
 module rr(w, d, ht) {
     r = min(w, d) * 0.38;
     linear_extrude(height = ht)
@@ -115,7 +115,7 @@ module arm_assembly() {
     tw = cradle_w * cradle_taper + wall * 2;
     td = cradle_d * cradle_taper + wall * 2;
 
-    // Transition from rounded-rect cradle top to elliptical arm
+    // Transition from cradle top to elliptical arm
     hull() {
         translate([0, 0, z1 - 0.1])
         rr(tw, td, 0.1);
