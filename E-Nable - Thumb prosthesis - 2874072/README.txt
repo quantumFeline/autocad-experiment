@@ -1,0 +1,4 @@
+E-Nable - Thumb prosthesis by SandraDermisek on Thingiverse: https://www.thingiverse.com/thing:2874072
+
+Summary:
+For a 16 year old boy, who had an accident and lost part of his thumb, I designed this thumb.I have used the thumb of Gyrobot's flexy-hand and designed a new thumb phalanx.The linkage and bracelet design I remixed from the Knick's prosthetic finger.The thumb can't bend much, but for this boy it really works well enough to grab things like a coffee mug or the controller of his game computer. Please be aware that I have just made one thumb and it hasn't been tested much, but since there a not yet much thumb versions on thingiverse it uploaded it anyway.You never know if my remix of the flexy-thumb can help someone else.
