@@ -2,74 +2,47 @@
 // ===================================================================
 // Rigid Thumb Extension Prosthetic - MVP
 // ===================================================================
-// A tapered thimble cap fits over the thumb stump. A rigid arm
-// extends from the cap with a downward bend and rounded grip tip.
-// A palm plate extends from the cradle toward the wrist for mounting
-// inside a fingerless cycling glove.
-//
-// COORDINATE SYSTEM (as worn):
-//   Z = along arm axis, from stump opening toward grip tip
-//   X = width (left-right across the arm)
-//   Y = dorsal(+) to palmar(-). Palm plate is on -Y side.
+// Organic, finger-like shape. Tapered cradle over the stump, smooth
+// elliptical arm with bend, rounded grip tip. Palm plate for mounting.
 //
 // MEASUREMENTS NEEDED (all in mm):
 //   cradle_w/d  : stump cross-section at widest + ~2mm clearance
-//   cradle_depth: how much stump to cup (leave some free for ROM)
-//   cradle_taper: ratio of top to base width (0.7-0.9)
-//   arm lengths : adjust so tip reaches normal thumb tip position
+//   cradle_depth: how much stump to cup
+//   cradle_taper: top/bottom ratio (0.7-0.9)
+//   arm lengths : total should match normal thumb length
 //   bend_angle  : 20-25 cup, 30-35 general, 40+ pen
-//
-// PRINTING:
-//   Cradle + arm: PLA, 0.2mm layers, 3 perimeters, 20% infill
-//   Palm plate: consider printing thin (2mm) or in TPU for flex
-//   Post-print: sand cradle interior and skin-contact edges smooth
 // ===================================================================
 
 /* [Stump Cradle] */
-// Width at cradle opening (wider axis of stump + clearance)
 cradle_w = 18;
-// Depth at cradle opening (narrower axis + clearance)
 cradle_d = 14;
-// Cup height
 cradle_depth = 10;
-// Taper ratio: top dimensions as fraction of base (< 1 = narrows)
 cradle_taper = 0.8;
-// Wall thickness
 wall = 2.5;
-// Comfort slot width on dorsal side
 slot_w = 3;
 
 /* [Extension Arm] */
-// Straight section before bend
 arm_pre = 22;
-// Arm width
 arm_w = 14;
-// Arm thickness
-arm_h = 6;
-// Downward bend angle (degrees toward palm/objects)
+arm_h = 12;
 bend_angle = 30;
-// Section after bend
 arm_post = 16;
 
 /* [Grip Tip] */
-// Grip pad length
-tip_len = 10;
+tip_len = 8;
 
 /* [Palm Plate] */
-// Length extending toward wrist from cradle base
-plate_len = 25;
-// Width of palm plate
-plate_w = 22;
-// Thickness (keep thin for comfort under glove, or print in TPU)
+plate_len = 18;
+plate_w = 20;
 plate_t = 2;
+plate_r = 5;
 
 /* [Mounting] */
-// Sewing hole diameter
 hole_d = 2;
 
 /* [Hidden] */
-$fn = 48;
-tran = 10;
+$fn = 64;
+tran = 12;
 
 main();
 
@@ -86,55 +59,54 @@ module main() {
     }
 }
 
-// Rounded rectangle extrusion helper
-module rr(w, d, h, r = 2) {
-    linear_extrude(height = h)
+// Elliptical cross-section (organic arm profile)
+module ell(w, h, ht) {
+    linear_extrude(height = ht)
+    scale([1, h / w])
+    circle(d = w);
+}
+
+// Heavily rounded rectangle (for cradle: rounded but not fully elliptical)
+module rr(w, d, ht) {
+    r = min(w, d) * 0.38;
+    linear_extrude(height = ht)
     offset(r = r) offset(delta = -r)
     square([w, d], center = true);
 }
 
-// Arm cross-section
-module arm_cs(h) {
-    linear_extrude(height = h)
-    offset(r = 1) offset(delta = -1)
-    square([arm_w, arm_h], center = true);
-}
-
-// Outer cradle shell: tapered (blunt pyramid), closed top
+// Tapered cradle outer shell
 module cradle_outer() {
     ow = cradle_w + wall * 2;
     od = cradle_d + wall * 2;
     tw = cradle_w * cradle_taper + wall * 2;
     td = cradle_d * cradle_taper + wall * 2;
 
-    // Tapered body + cap
     hull() {
         rr(ow, od, 0.1);
         translate([0, 0, cradle_depth + wall])
         rr(tw, td, 0.1);
     }
-    // Chamfer at opening for comfort
+    // Lip chamfer at opening
     hull() {
-        rr(ow + 1.6, od + 1.6, 0.1, 2.5);
-        translate([0, 0, 0.8])
+        rr(ow + 1.2, od + 1.2, 0.1);
+        translate([0, 0, 1])
         rr(ow, od, 0.1);
     }
 }
 
-// Interior cavity (tapered to match outer shell)
+// Interior cavity
 module cradle_hollow() {
     tw = cradle_w * cradle_taper;
     td = cradle_d * cradle_taper;
-
     translate([0, 0, -0.1])
     hull() {
-        rr(cradle_w, cradle_d, 0.1, 1.5);
+        rr(cradle_w, cradle_d, 0.1);
         translate([0, 0, cradle_depth + 0.1])
-        rr(tw, td, 0.1, 1.5);
+        rr(tw, td, 0.1);
     }
 }
 
-// Transition from cradle top to arm, pre-bend arm, bend, post-bend, tip
+// Full arm: transition, pre-bend, bend filler, post-bend, tip
 module arm_assembly() {
     z1 = cradle_depth + wall;
     z2 = z1 + tran;
@@ -143,76 +115,92 @@ module arm_assembly() {
     tw = cradle_w * cradle_taper + wall * 2;
     td = cradle_d * cradle_taper + wall * 2;
 
-    // Transition: pyramid top -> rectangular arm
+    // Transition from rounded-rect cradle top to elliptical arm
     hull() {
         translate([0, 0, z1 - 0.1])
         rr(tw, td, 0.1);
         translate([0, 0, z2])
-        arm_cs(0.1);
+        ell(arm_w, arm_h, 0.1);
     }
 
-    // Pre-bend arm
-    translate([0, 0, z2])
-    arm_cs(arm_pre);
+    // Pre-bend arm (slight taper toward the bend)
+    hull() {
+        translate([0, 0, z2])
+        ell(arm_w, arm_h, 0.1);
+        translate([0, 0, z3])
+        ell(arm_w * 0.95, arm_h * 0.95, 0.1);
+    }
 
-    // Bend filler: fills the gap at the bend joint
+    // Bend filler (smooth outer curve)
     translate([0, 0, z3])
     hull() {
-        arm_cs(0.1);
+        ell(arm_w * 0.95, arm_h * 0.95, 0.1);
         rotate([-bend_angle, 0, 0])
-        arm_cs(0.1);
+        ell(arm_w * 0.95, arm_h * 0.95, 0.1);
     }
 
-    // Post-bend arm
+    // Post-bend arm (tapers further toward tip)
     translate([0, 0, z3])
     rotate([-bend_angle, 0, 0]) {
-        arm_cs(arm_post);
+        hull() {
+            ell(arm_w * 0.95, arm_h * 0.95, 0.1);
+            translate([0, 0, arm_post])
+            ell(arm_w * 0.8, arm_h * 0.9, 0.1);
+        }
 
-        // Grip tip: rounded, slightly wider on palmar side
+        // Grip tip: smooth dome cap
         translate([0, 0, arm_post])
         hull() {
-            arm_cs(0.1);
-            translate([0, -1, tip_len])
-            resize([arm_w * 0.7, arm_h + 3, tip_len * 0.6])
-            sphere(d = arm_w);
+            ell(arm_w * 0.8, arm_h * 0.9, 0.1);
+            translate([0, 0, tip_len])
+            resize([arm_w * 0.5, arm_h * 0.6, arm_h * 0.6])
+            sphere(d = 1, $fn = 32);
         }
     }
 }
 
-// Flat plate on palmar side, extending from cradle base toward wrist
+// Palm plate: thick rounded mounting pad, flush against palm side of cradle
 module palm_plate() {
     y_base = -(cradle_d / 2 + wall);
-    overlap = cradle_depth * 0.3;
+    overlap = cradle_depth * 0.2;
+    sr = plate_t / 2;
+    top_w = plate_w;
+    bot_w = plate_w * 0.5;
 
-    // Plate body
-    translate([-plate_w / 2, y_base - plate_t, -plate_len])
-    cube([plate_w, plate_t, plate_len + overlap]);
-
-    // Fillet connecting plate to cradle (smooth the junction)
+    translate([0, y_base - sr, 0])
     hull() {
-        translate([-plate_w / 2, y_base - plate_t, 0])
-        cube([plate_w, plate_t, 0.1]);
-        translate([-(cradle_w / 2 + wall), y_base - 0.1, 0])
-        cube([cradle_w + wall * 2, 0.1, cradle_depth * 0.2]);
+        for (x = [-(top_w / 2 - sr), top_w / 2 - sr])
+            translate([x, 0, overlap])
+            sphere(r = sr);
+
+        for (x = [-(bot_w / 2 - sr), bot_w / 2 - sr])
+            translate([x, 0, -plate_len])
+            sphere(r = sr);
     }
 }
 
-// Comfort slot on dorsal (+Y) side for flex and insertion
+// Comfort slot on dorsal (+Y) side
 module comfort_slot() {
     max_y = cradle_d / 2 + wall + 1;
     translate([-slot_w / 2, 0, -0.1])
     cube([slot_w, max_y, cradle_depth + 0.2]);
 }
 
-// Sewing holes through the palm plate
+// Stitch holes through the palm plate
 module stitch_holes() {
     y_base = -(cradle_d / 2 + wall);
+    sr = plate_t / 2;
+    top_w = plate_w;
+    bot_w = plate_w * 0.5;
+    overlap = cradle_depth * 0.4;
+    total = plate_len + overlap;
 
-    // Through palm plate (two rows)
-    for (i = [0:3]) {
-        z = -plate_len + plate_len * (i + 0.5) / 4;
-        for (x_off = [-plate_w / 2 + 3, plate_w / 2 - 3]) {
-            translate([x_off, y_base - plate_t - 0.1, z])
+    for (i = [0:2]) {
+        frac = (i + 0.5) / 3;
+        z = overlap - total * frac;
+        pw = bot_w + (top_w - bot_w) * (1 - frac);
+        for (x_off = [-(pw / 2 - 3), pw / 2 - 3]) {
+            translate([x_off, y_base - sr - sr - 0.1, z])
             rotate([-90, 0, 0])
             cylinder(h = plate_t + 0.2, d = hole_d, $fn = 12);
         }
