@@ -141,21 +141,25 @@ clr = 0.15;                             // glued-insert clearance
 barrel_w = hinge_w - 2*(cheek_t + hinge_gap);
 slot_w = barrel_w + 2*hinge_gap;
 pocket_d = knuckle_d + 0.7;             // barrel swing pocket
-// half-width of the footprint at a given y (linear wedge from the
-// palm-front to the wider palm-back side)
-function base_hw_at(y) =
-    (base_w_front + (y + base_d/2) / base_d
-                  * (base_w_back - base_w_front)) / 2;
+// proximal loft sections (more = smoother silhouette)
+prox_n = 9;
+// height below which the proximal keeps its full footprint
+skirt_h = 4;
 // centre height of the sewing plate band: screw band on the face,
 // slitted half hanging below the base rim
 plate_z = 2.8;
+
+function lerp(a, b, t) = a + (b - a)*t;
+// smoothstep: zero slope at both ends, so the skirt shoulder and
+// the landing under the knuckle blend without creases
+function ease(t) = let (u = max(0, min(1, t))) u*u*(3 - 2*u);
 
 // ===================== PART SELECTION =====================
 
 if (part == "preview")      preview_assembly();
 if (part == "proximal")     proximal_body();
-if (part == "distal")       distal_print();
-if (part == "nail")         nail_solid(0);
+if (part == "distal")       distal_body();
+if (part == "nail")         rotate([90, 0, 0]) nail_shape(0);
 if (part == "disk_ring")    disk_ring();
 if (part == "disk_plug")    disk_plug();
 if (part == "plate")        sewing_plate(plate_w, slit_w);
@@ -174,16 +178,10 @@ module loft() {
         hull() { children(i); children(i+1); }
 }
 
-// hinge centre, unrolled; used for the pyramid top slice so it does
-// not twist with hinge_spin
-module tilt_frame() {
-    translate([hinge_x, 0, hinge_z]) children();
-}
-
 // places children at the hinge centre, rolled by hinge_spin;
 // local X = pin axis, local Z = distal direction at 0 deg flexion
 module hinge_frame() {
-    tilt_frame() rotate([0, 0, hinge_spin]) children();
+    translate([hinge_x, 0, hinge_z]) rotate([0, 0, hinge_spin]) children();
 }
 
 // cylinder along the local pin axis (X)
@@ -193,45 +191,35 @@ module pin_cyl(d, h) {
 
 // ===================== OUTER FORM =====================
 
-// rounded trapezoid footprint of the pyramid: parallel 15/25 mm
-// sides at palm-front/palm-back, ~30 mm slanted sides at the
-// fingers and wrist sides
-module footprint_2d(grow = 0) {
-    r = 4;
-    hull() for (sy = [-1, 1], sx = [-1, 1])
-        translate([sx*(base_hw_at(sy*base_d/2) - r),
-                   sy*(base_d/2 - r)])
-            circle(r = r + grow);
+// the proximal cross-section at height z: a rounded trapezoid
+// (parallel 15/25 mm sides at palm-front/palm-back, ~30 mm slanted
+// sides at the fingers and wrist sides) that morphs into a near-
+// circle under the knuckle. grow < 0 shrinks it for the hollow.
+module prox_section_2d(z, h, grow = 0) {
+    t  = ease((z - skirt_h) / (h - skirt_h));
+    wf = lerp(base_w_front, 13.2, t) + 2*grow;  // palm-front width
+    wb = lerp(base_w_back,  13.2, t) + 2*grow;  // palm-back width
+    d  = lerp(base_d,       13.5, t) + 2*grow;  // palm-normal depth
+    r  = min(lerp(4, 6, t) + grow,
+             min(wf, wb, d)/2 - 0.5);           // corner rounding
+    translate([lerp(0, hinge_x, t), 0])
+        offset(r) polygon([
+            [-(wf/2 - r), -(d/2 - r)],
+            [  wf/2 - r,  -(d/2 - r)],
+            [  wb/2 - r,   d/2 - r ],
+            [-(wb/2 - r),  d/2 - r ]]);
 }
 
-module footprint_slab(grow = 0) {
-    linear_extrude(1.2) footprint_2d(grow);
-}
-
-// soft edge roll just above the footprint
-module corner_ring(grow = 0) {
-    r = 4.5;
-    for (sy = [-1, 1], sx = [-1, 1])
-        translate([sx*(base_hw_at(sy*base_d/2) - r - 0.3),
-                   sy*(base_d/2 - r - 0.3), 5])
-            sphere(r + grow);
-}
-
-// the whole proximal outer form: one truncated pyramid from the
-// footprint to the hinge. grow < 0 shrinks it for the hollow;
-// top_off lowers the top slice (used to keep the hollow clear of
-// the hinge mechanism).
+// the whole proximal outer form: one smooth sweep of the section
+// profile from the footprint to just below the knuckle. top_off
+// lowers the top (used to keep the hollow clear of the mechanism).
 module pyramid(grow = 0, top_off = 0) {
-    g2 = 2*grow;
-    loft() {
-        footprint_slab(grow);
-        hull() corner_ring(grow);
-        slice(16 + g2,   22 + g2,   1,   0, 12);
-        slice(14.5 + g2, 17.5 + g2, 1.5, 0, 19);
-        slice(13.8 + g2, 15 + g2,   2,   0, 25);
-        tilt_frame()
-            slice(13 + g2, 13.5 + g2, 0, 0,
-                  -(knuckle_d/2 + 0.5 + top_off));
+    h = hinge_z - (knuckle_d/2 + 0.5 + top_off);
+    for (i = [0 : prox_n - 2]) hull() {
+        translate([0, 0,  h*i/(prox_n - 1)])
+            linear_extrude(0.2) prox_section_2d(h*i/(prox_n - 1), h, grow);
+        translate([0, 0,  h*(i + 1)/(prox_n - 1)])
+            linear_extrude(0.2) prox_section_2d(h*(i + 1)/(prox_n - 1), h, grow);
     }
 }
 
@@ -307,7 +295,7 @@ module cavity() {
         pyramid(-wall, 3.5);
         // open the bottom
         translate([0, 0, -4]) linear_extrude(4 + 2*eps)
-            footprint_2d(-wall);
+            prox_section_2d(0, hinge_z, -wall);
     }
 }
 
@@ -394,7 +382,7 @@ module distal_body() {
         }
         translate([0, 4.7, 8]) sphere(2.2);
         // nail pocket
-        nail_solid(clr);
+        nail_place() nail_shape(clr);
         // lightening cavity, clear of tunnels and hinge
         intersection() {
             distal_form(-3);
@@ -403,19 +391,19 @@ module distal_body() {
     }
 }
 
-// distal in print orientation (barrel down is preview default here;
-// print tip-up with a brim, or on its side, whichever slices cleaner)
-module distal_print() { distal_body(); }
-
 // ===================== BLACK / WHITE INLAYS =====================
 
-// decorative nail: almond dome, half-buried in the dorsal surface of
-// the distal phalange; also used (grown) to cut the pocket
-module nail_solid(grow) {
-    cz = distal_len - 9;          // nail centre along the phalange
-    translate([0, 4.1, cz])
-        resize([nail_w + 2*grow, 3 + 2*grow, nail_len + 2*grow])
-            sphere(1);
+// decorative nail: almond dome, half-buried in the nail-side
+// surface of the distal phalange; also used (grown) to cut the
+// pocket. Shape is origin-centred; nail_place() puts it on the
+// distal in the hinge frame.
+module nail_shape(grow) {
+    resize([nail_w + 2*grow, 3 + 2*grow, nail_len + 2*grow])
+        sphere(1);
+}
+
+module nail_place() {
+    translate([0, 4.1, distal_len - 9]) children();
 }
 
 module disk_ring() {
@@ -464,7 +452,7 @@ module preview_assembly() {
     color("white") proximal_body();
     hinge_frame() rotate([preview_flex, 0, 0]) {
         color("white") distal_body();
-        color("black") nail_solid(0);
+        color("black") nail_place() nail_shape(0);
     }
     // disk rings and plugs in place
     hinge_frame() for (s = [-1, 1])
@@ -483,12 +471,13 @@ module preview_assembly() {
 // all printable parts laid out flat
 module print_plate() {
     translate([-25, 0, 0]) proximal_body();
-    translate([15, 0, knuckle_d/2]) rotate([0, 90, 0])
-        rotate([0, -90, 0]) distal_body();
-    translate([35, 15, 0]) disk_ring();
-    translate([45, 15, 0]) disk_ring();
-    translate([35, 25, 0]) disk_plug();
-    translate([45, 25, 0]) disk_plug();
-    translate([40, -15, 0]) rotate([0, -90, 90]) nail_solid(0);
+    // distal upright, standing on the barrel (needs a brim)
+    translate([15, 0, knuckle_d/2]) distal_body();
+    for (i = [0, 1]) {
+        translate([35 + i*10, 15, 0]) disk_ring();
+        translate([35 + i*10, 25, 0]) disk_plug();
+    }
+    // nail lying flat, dome up (print on a raft)
+    translate([40, -15, 1.5]) rotate([90, 0, 0]) nail_shape(0);
     for (i = [-1, 1]) translate([70, i*12, 0]) sewing_plate(plate_w, slit_w);
 }
