@@ -214,7 +214,9 @@ module prox_section_2d(z, h, grow = 0) {
 // profile from the footprint to just below the knuckle. top_off
 // lowers the top (used to keep the hollow clear of the mechanism).
 module pyramid(grow = 0, top_off = 0) {
-    h = hinge_z - (knuckle_d/2 + 0.5 + top_off);
+    // the top section reaches 0.5 into the knuckle hub so the sweep
+    // and the hub fuse into one solid
+    h = hinge_z - (knuckle_d/2 - 0.5 + top_off);
     for (i = [0 : prox_n - 2]) hull() {
         translate([0, 0,  h*i/(prox_n - 1)])
             linear_extrude(0.2) prox_section_2d(h*i/(prox_n - 1), h, grow);
@@ -225,12 +227,15 @@ module pyramid(grow = 0, top_off = 0) {
 
 // distal phalange outer form in the hinge frame (local Z up at 0 deg).
 // Soft palmar bow and a fuller pad, per a real thumb silhouette.
+// The root stays barrel-width until it clears the fork cheek radius
+// (knuckle_d/2), then fans out, so it never rubs the cheeks at any
+// flexion angle.
 module distal_form(grow = 0) {
     g2 = 2*grow;
     union() {
         loft() {
-            slice(11 + g2,   10.5 + g2, 0,  0,   4);
-            slice(12.5 + g2, 12 + g2,   0, -0.4, 9.5);
+            slice(barrel_w + g2, 9.5 + g2, 0, 0,   5.8);
+            slice(12.3 + g2, 12 + g2,   0, -0.3, 9.5);
             slice(12 + g2,   11 + g2,   0, -0.7, 15);
             slice(10.5 + g2, 9.5 + g2,  0, -0.8, distal_len - 6);
         }
@@ -248,6 +253,11 @@ module proximal_body() {
             pyramid();
             // knuckle hub around the pin axis
             hinge_frame() pin_cyl(knuckle_d, hinge_w);
+            // extension stop buttress: braces the hub on the
+            // extension side and provides the floor (top face at
+            // the slot floor level) that the distal's heel rests
+            // on at 0 deg; the barrel pocket trims its inner edge
+            hinge_frame() translate([-4, 5.2, -5]) cube([8, 2.2, 3.5]);
         }
         cavity();
         fork_slot();
@@ -271,15 +281,23 @@ module proximal_body() {
                 translate([0, -4.8, -2.4]) sphere(tunnel_r);
             }
             // elastic anchor: two button holes through the extension-
-            // side wall below the knuckle; the cord loops through
+            // side wall below the knuckle, into the hollow, so the
+            // cord can be threaded in one hole and out the other
             for (s = [-1, 1])
-                translate([s*2.2, 4, -12])
-                    rotate([-90, 0, 0]) cylinder(d = 2, h = 6);
+                translate([s*2.2, 2, -12])
+                    rotate([-90, 0, 0]) cylinder(d = 2, h = 9.5);
+            // shallow guide groove on the extension-side outer wall,
+            // keeping the elastic on track between the buttons and
+            // the hinge
+            hull() {
+                translate([0, 6.5, -12])   sphere(1.1);
+                translate([0, 5.8, -1.2]) sphere(1.1);
+            }
         }
         // tendon entry hole through the wrist-side wall, above the
         // stump
         translate([-11, 0, tendon_entry_z])
-            rotate([0, 90, 0]) cylinder(d = 2.4, h = 8);
+            rotate([0, 90, 0]) cylinder(d = 2.4, h = 10);
         plate_pockets();
         // oblique bottom rim: hinged on the palm-back bottom edge,
         // rising towards the palm-front
@@ -309,10 +327,6 @@ module fork_slot() {
     }
 }
 
-// local frame on the inner (s=1, fingers side) or outer (s=-1,
-// wrist side) face of the pyramid: origin on the face at y=0,
-// z=plate_z; local +Z = outward normal, local X along the plate
-// width (world Y). The frame leans with the pyramid side.
 // local frame on the fingers-side (s=1) or wrist-side (s=-1) long
 // face of the pyramid: origin on the face at y=0, z=plate_z;
 // local +Z = outward normal, local X along the plate width (which
@@ -356,31 +370,33 @@ module distal_body() {
                 rotate([0, 90, 0]) rotate_extrude()
                     translate([knuckle_d/2, 0]) circle(r = tunnel_r);
             }
-            // root fan: barrel to phalange, kept inside the slot width
+            // root neck: barrel-width column joining the phalange,
+            // kept inside the slot at every flexion angle
             hull() {
                 pin_cyl(knuckle_d, barrel_w);
-                slice(11, 10.5, 0, 0, 4);
+                slice(barrel_w, 9.5, 0, 0, 5.8);
             }
-            // extension stop heel: dorsal tab that rests on the slot
-            // floor at 0 deg and lifts away in flexion
+            // extension stop heel: dorsal tab reaching past the
+            // barrel pocket; rests on the slot floor at 0 deg and
+            // lifts away in flexion
             translate([-barrel_w/2, 2.5, -1.2])
-                cube([barrel_w, knuckle_d/2 - 0.5, 3]);
+                cube([barrel_w, 4.5, 3]);
         }
         // pin bore
         pin_cyl(pin_hole_d, hinge_w + 2);
-        // palmar tendon tunnel: root entry to anchor pocket
+        // flexion-side tendon tunnel: root entry to anchor pocket
         hull() {
-            translate([0, -knuckle_d/2 - 0.3, 1.5]) sphere(tunnel_r);
-            translate([0, -4.6, 9]) sphere(tunnel_r);
+            translate([0, -4.9, 2]) sphere(tunnel_r);
+            translate([0, -4.8, 9.5]) sphere(tunnel_r);
         }
-        // palmar anchor pocket (knot recess)
-        translate([0, -4.9, 9]) sphere(2.2);
-        // dorsal elastic tunnel and anchor pocket
+        // tendon anchor pocket (knot recess)
+        translate([0, -5.3, 10]) sphere(2.1);
+        // extension-side elastic tunnel and anchor pocket
         hull() {
-            translate([0, knuckle_d/2 + 0.3, 1.5]) sphere(tunnel_r);
-            translate([0, 4.4, 8]) sphere(tunnel_r);
+            translate([0, 4.6, 3]) sphere(tunnel_r);
+            translate([0, 4.2, 8.5]) sphere(tunnel_r);
         }
-        translate([0, 4.7, 8]) sphere(2.2);
+        translate([0, 5.2, 9]) sphere(2.1);
         // nail pocket
         nail_place() nail_shape(clr);
         // lightening cavity, clear of tunnels and hinge
