@@ -147,8 +147,9 @@ pocket_d = knuckle_d + 0.7;             // barrel swing pocket
 function base_depth_at(x) =
     base_depth_outer + (x + base_w/2) / base_w
                      * (base_depth_inner - base_depth_outer);
-// centre height of the sewing plate band on the side faces
-plate_z = 10;
+// centre height of the sewing plate band: screw band on the face,
+// slitted half hanging below the base rim
+plate_z = 2.8;
 
 // ===================== PART SELECTION =====================
 
@@ -347,9 +348,9 @@ module plate_pockets() {
         translate([0, 0, -0.8]) linear_extrude(8)
             offset(3) square([w - 6 + 0.6, plate_h - 6 + 0.6],
                              center = true);
-        // screw pilot holes (self-tapping M2), lower band
+        // screw pilot holes (self-tapping M2), upper band
         for (h = [-1, 1])
-            translate([h*(w/2 - 3.5), -plate_h/2 + 3, -6])
+            translate([h*(w/2 - 3.5), plate_h/2 - 3, -6])
                 cylinder(d = base_hole_d, h = 7);
     }
 }
@@ -429,19 +430,20 @@ module disk_plug() {
 
 // ===================== SEWING PLATES (TPU) =====================
 
-// w = plate width, sw = slit length; slit in the upper half, screw
-// holes in the lower half (matching the base pad pilot holes)
+// w = plate width, sw = slit length. The screw band (upper half)
+// mounts on the pyramid face; the slitted lower half hangs below
+// the base rim so the wrap pulls the base down onto the stump.
 module sewing_plate(w, sw) {
     difference() {
         linear_extrude(plate_t)
             offset(3) square([w - 6, plate_h - 6], center = true);
-        // fabric slit
-        translate([0, plate_h/2 - 3 - slit_h/2, -eps])
+        // fabric slit, below the rim
+        translate([0, -plate_h/2 + 4, -eps])
             linear_extrude(plate_t + 2*eps)
                 offset(slit_h/2) square([sw - slit_h, eps], center = true);
-        // screw holes
+        // screw holes, on-face band
         for (h = [-1, 1])
-            translate([h*(w/2 - 3.5), -plate_h/2 + 3, -eps])
+            translate([h*(w/2 - 3.5), plate_h/2 - 3, -eps])
                 cylinder(d = plate_hole_d, h = plate_t + 2*eps);
     }
 }
