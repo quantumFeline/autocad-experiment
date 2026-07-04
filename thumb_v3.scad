@@ -86,8 +86,11 @@ hinge_z = 32.5;
 hinge_spin = 90;
 
 /* [Hinge] */
-// knuckle (barrel) outer diameter
+// knuckle outer diameter (the visible hinge cylinder)
 knuckle_d = 11;
+// barrel diameter, smaller than the knuckle so its swing pocket
+// stays inside the hub and leaves a natural extension stop floor
+barrel_d = 9;
 // width of the hinge region along the pin axis
 hinge_w = 13;
 // fork cheek thickness
@@ -140,7 +143,7 @@ eps = 0.01;
 clr = 0.15;                             // glued-insert clearance
 barrel_w = hinge_w - 2*(cheek_t + hinge_gap);
 slot_w = barrel_w + 2*hinge_gap;
-pocket_d = knuckle_d + 0.7;             // barrel swing pocket
+pocket_d = barrel_d + 0.7;              // barrel swing pocket
 // proximal loft sections (more = smoother silhouette)
 prox_n = 9;
 // height below which the proximal keeps its full footprint
@@ -235,7 +238,7 @@ module distal_form(grow = 0) {
     loft() {
         slice(barrel_w + g2, 9.5 + g2, 0, 0,   5.8);
         // early flare cupping down towards the knuckle
-        slice(11.5 + g2, 11 + g2,   0, -0.15, 7.5);
+        slice(11.5 + g2, 11 + g2,   0, -0.15, 8);
         slice(12.3 + g2, 12 + g2,   0, -0.3, 9.5);
         slice(12 + g2,   11 + g2,   0, -0.7, 15);
         slice(10.5 + g2, 9.5 + g2,  0, -0.8, distal_len - 6);
@@ -253,19 +256,12 @@ module proximal_body() {
             pyramid();
             // knuckle hub around the pin axis
             hinge_frame() pin_cyl(knuckle_d, hinge_w);
-            // extension stop collar: a ring segment hugging the hub
-            // from below on the extension side; its flat top face is
-            // the slot floor the distal's heel rests on at 0 deg.
-            // The barrel pocket trims its inner edge.
-            hinge_frame() intersection() {
-                pin_cyl(knuckle_d + 3.4, slot_w);
-                translate([-slot_w/2, 3, -7]) cube([slot_w, 4.5, 5.5]);
-            }
-            // tangent-cone blend from the pyramid top into the hub,
-            // so the shaft meets the knuckle without a sharp ledge
+            // tangent blend from the pyramid top into the hub, so
+            // the shaft meets the knuckle without a sharp ledge; a
+            // rounded slab (not a cube) so no corner fins form
             hinge_frame() hull() {
-                pin_cyl(8, hinge_w);
-                translate([0, 0, -5]) cube([hinge_w, 13, 0.6], center = true);
+                pin_cyl(8, hinge_w - 2);
+                slice(13.2, 13, 0, 0, -5);
             }
         }
         cavity();
@@ -297,10 +293,10 @@ module proximal_body() {
                     rotate([-90, 0, 0]) cylinder(d = 2, h = 9.5);
             // shallow guide groove on the extension-side outer wall,
             // keeping the elastic on track between the buttons and
-            // the hinge
+            // the hinge; the end notches the hub's lower edge
             hull() {
-                translate([0, 6.5, -12])   sphere(1.1);
-                translate([0, 5.8, -1.2]) sphere(1.1);
+                translate([0, 6.5, -12]) sphere(1.1);
+                translate([0, 5.4, -2])  sphere(1.1);
             }
         }
         // tendon entry hole through the wrist-side wall, above the
@@ -336,8 +332,8 @@ module fork_slot() {
         // letting the distal root sweep below the floor level
         // through full flexion without hitting the hub blend
         rotate([35, 0, 0])
-            translate([-slot_w/2, -knuckle_d/2 - 4, -1.5])
-                cube([slot_w, knuckle_d + 8, knuckle_d + 6]);
+            translate([-slot_w/2 - 1.3, -knuckle_d/2 - 4, -2.1])
+                cube([slot_w + 2.6, knuckle_d + 8, knuckle_d + 6]);
         pin_cyl(pocket_d, slot_w);
     }
 }
@@ -381,24 +377,23 @@ module distal_body() {
             distal_form();
             // barrel with a central tendon groove (pulley)
             difference() {
-                pin_cyl(knuckle_d, barrel_w);
+                pin_cyl(barrel_d, barrel_w);
                 rotate([0, 90, 0]) rotate_extrude()
-                    translate([knuckle_d/2, 0]) circle(r = tunnel_r);
+                    translate([barrel_d/2, 0]) circle(r = tunnel_r);
             }
             // root neck: barrel-width column joining the phalange,
             // kept inside the slot at every flexion angle
             hull() {
-                pin_cyl(knuckle_d, barrel_w);
+                pin_cyl(barrel_d, barrel_w);
                 slice(barrel_w, 9.5, 0, 0, 5.8);
             }
-            // extension stop heel: a rounded tab continuing the
-            // collar radius above the slot floor; rests on the
-            // collar at 0 deg and lifts away in flexion, so the two
-            // read as one split ring around the joint
+            // extension stop heel: a rounded tab hidden within the
+            // knuckle circle; rests on the hub's internal stop floor
+            // at 0 deg and lifts away in flexion
             intersection() {
-                pin_cyl(knuckle_d + 3.4, barrel_w);
-                translate([-barrel_w/2, 2.5, -1.2])
-                    cube([barrel_w, 5.2, 3.4]);
+                pin_cyl(knuckle_d - 0.2, barrel_w);
+                translate([-barrel_w/2, 2.2, -1.2])
+                    cube([barrel_w, 3.5, 4]);
             }
         }
         // pin bore
