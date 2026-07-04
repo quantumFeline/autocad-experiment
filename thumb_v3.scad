@@ -109,9 +109,9 @@ disk_t = 1.2;
 
 /* [Distal phalange] */
 distal_len = 25;
-// nail length and width
-nail_len = 8;
-nail_w = 6.5;
+// nail length and width (slender ellipse, sitting high on the tip)
+nail_len = 8.5;
+nail_w = 5;
 
 /* [Tendon and elastic] */
 tunnel_r = 1.2;
@@ -398,12 +398,12 @@ module distal_body() {
 // pocket. Shape is origin-centred; nail_place() puts it on the
 // distal in the hinge frame.
 module nail_shape(grow) {
-    resize([nail_w + 2*grow, 3 + 2*grow, nail_len + 2*grow])
+    resize([nail_w + 2*grow, 2.6 + 2*grow, nail_len + 2*grow])
         sphere(1);
 }
 
 module nail_place() {
-    translate([0, 4.1, distal_len - 9]) children();
+    translate([0, 3.9, distal_len - 7]) children();
 }
 
 module disk_ring() {
