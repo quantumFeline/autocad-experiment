@@ -9,18 +9,18 @@
 //   -X outer side (towards the wrist)
 //   +Y palm-back (dorsal side of the hand), -Y palm-front
 //
-// The proximal phalange is a single hollow truncated pyramid: a
-// rounded ~30 mm footprint tapering straight to the 13 mm hinge.
-// The stump (triangular with its skin web) sits in the hollow,
-// lined with foam.
+// The proximal phalange is a single hollow truncated pyramid over a
+// rounded trapezoid footprint: parallel 15/25 mm sides at the
+// palm-front/palm-back, two ~30 mm slanted sides facing the fingers
+// and the wrist (these carry the sewing plates). It tapers straight
+// to the 13 mm hinge; the stump sits in the hollow, lined with foam.
 //
 // The hinge is modelled in a local frame (hinge_frame): the pin axis
-// is local X, tilted by hinge_tilt in the frontal plane and rolled
-// about the thumb axis by hinge_spin. At the default spin of 90 the
-// thumb is fully pronated: the pin runs along the palm normal, the
-// disks face palm-front/palm-back, flexion curls the tip across the
-// palm towards the fingers (mirroring the stump's adduction), and
-// the nail faces away from the fingers.
+// is local X, rolled about the thumb axis by hinge_spin. At the
+// default spin of 90 the thumb is fully pronated: the pin runs along
+// the palm normal, the disks face palm-front/palm-back, flexion
+// curls the tip across the palm towards the fingers (mirroring the
+// stump's adduction), and the nail faces away from the fingers.
 //
 // Mechanism (Knick's-style differential tendon):
 //   - tendon (fishing line): anchored to the fabric wrap on the
@@ -47,7 +47,7 @@
 // ===================================================================
 
 /* [Part Selection] */
-part = "preview"; // [preview, proximal, distal, nail, disk_ring, disk_plug, plate_inner, plate_outer, print_all]
+part = "preview"; // [preview, proximal, distal, nail, disk_ring, disk_plug, plate, print_all]
 // hinge flexion angle shown in the preview, degrees
 preview_flex = 0; // [0:90]
 // draw coordinate axes in the preview:
@@ -55,13 +55,13 @@ preview_flex = 0; // [0:90]
 show_axes = false;
 
 /* [Base] */
-// footprint width across the palm plane (X); the hollow leaves
-// room for the ~15 mm triangular stump profile plus foam lining
-base_w = 30;
-// palm-normal depth at the outer (wrist) side
-base_depth_outer = 25;
-// palm-normal depth at the inner (fingers) side
-base_depth_inner = 15;
+// palm-normal depth of the footprint; the two ~30 mm slanted sides
+// face the fingers and the wrist and carry the sewing plates
+base_d = 30;
+// footprint width across the palm at the palm-back side
+base_w_back = 25;
+// footprint width across the palm at the palm-front side
+base_w_front = 15;
 // obliqueness of the bottom opening rim, degrees: the palm-back
 // edge reaches lower than the palm-front one, which makes the
 // proximal edges ~35 vs ~30 mm in the front view and keeps the
@@ -120,15 +120,13 @@ tunnel_r = 1.2;
 tendon_entry_z = 18;
 
 /* [Sewing plates] */
-// the plates sit on the inner (fingers-side) and outer (wrist-side)
-// faces of the pyramid; widths follow the base wedge depths there
-plate_w_outer = 22;
-plate_w_inner = 13;
+// the plates sit on the two long (~30 mm) faces of the pyramid,
+// facing the fingers and the wrist, slitted halves below the rim
+plate_w = 27;
 plate_h = 13;
 plate_t = 1.8;
-// fabric slit sizes (slit length per plate, common height)
-slit_w_outer = 12;
-slit_w_inner = 7;
+// fabric slit size
+slit_w = 19;
 slit_h = 2.8;
 // screw hole diameter: in plate (loose) and in base (self-tapping M2)
 plate_hole_d = 2.3;
@@ -143,10 +141,11 @@ clr = 0.15;                             // glued-insert clearance
 barrel_w = hinge_w - 2*(cheek_t + hinge_gap);
 slot_w = barrel_w + 2*hinge_gap;
 pocket_d = knuckle_d + 0.7;             // barrel swing pocket
-// depth of the base at a given x (linear wedge outer -> inner)
-function base_depth_at(x) =
-    base_depth_outer + (x + base_w/2) / base_w
-                     * (base_depth_inner - base_depth_outer);
+// half-width of the footprint at a given y (linear wedge from the
+// palm-front to the wider palm-back side)
+function base_hw_at(y) =
+    (base_w_front + (y + base_d/2) / base_d
+                  * (base_w_back - base_w_front)) / 2;
 // centre height of the sewing plate band: screw band on the face,
 // slitted half hanging below the base rim
 plate_z = 2.8;
@@ -159,8 +158,7 @@ if (part == "distal")       distal_print();
 if (part == "nail")         nail_solid(0);
 if (part == "disk_ring")    disk_ring();
 if (part == "disk_plug")    disk_plug();
-if (part == "plate_inner")  sewing_plate(plate_w_inner, slit_w_inner);
-if (part == "plate_outer")  sewing_plate(plate_w_outer, slit_w_outer);
+if (part == "plate")        sewing_plate(plate_w, slit_w);
 if (part == "print_all")    print_plate();
 
 // ===================== HELPERS =====================
@@ -195,13 +193,14 @@ module pin_cyl(d, h) {
 
 // ===================== OUTER FORM =====================
 
-// rounded trapezoid footprint of the pyramid: wedge-shaped in Y
-// (deeper at the wrist side)
+// rounded trapezoid footprint of the pyramid: parallel 15/25 mm
+// sides at palm-front/palm-back, ~30 mm slanted sides at the
+// fingers and wrist sides
 module footprint_2d(grow = 0) {
     r = 4;
-    hull() for (sx = [-1, 1], sy = [-1, 1])
-        translate([sx*(base_w/2 - r),
-                   sy*(base_depth_at(sx*base_w/2)/2 - r)])
+    hull() for (sy = [-1, 1], sx = [-1, 1])
+        translate([sx*(base_hw_at(sy*base_d/2) - r),
+                   sy*(base_d/2 - r)])
             circle(r = r + grow);
 }
 
@@ -212,9 +211,9 @@ module footprint_slab(grow = 0) {
 // soft edge roll just above the footprint
 module corner_ring(grow = 0) {
     r = 4.5;
-    for (sx = [-1, 1], sy = [-1, 1])
-        translate([sx*(base_w/2 - r - 0.3),
-                   sy*(base_depth_at(sx*base_w/2)/2 - r - 0.3), 5])
+    for (sy = [-1, 1], sx = [-1, 1])
+        translate([sx*(base_hw_at(sy*base_d/2) - r - 0.3),
+                   sy*(base_d/2 - r - 0.3), 5])
             sphere(r + grow);
 }
 
@@ -227,9 +226,9 @@ module pyramid(grow = 0, top_off = 0) {
     loft() {
         footprint_slab(grow);
         hull() corner_ring(grow);
-        slice(21.5 + g2, 18 + g2,   1,   0, 12);
-        slice(17.5 + g2, 16.3 + g2, 1.5, 0, 19);
-        slice(14.8 + g2, 15 + g2,   2,   0, 25);
+        slice(16 + g2,   22 + g2,   1,   0, 12);
+        slice(14.5 + g2, 17.5 + g2, 1.5, 0, 19);
+        slice(13.8 + g2, 15 + g2,   2,   0, 25);
         tilt_frame()
             slice(13 + g2, 13.5 + g2, 0, 0,
                   -(knuckle_d/2 + 0.5 + top_off));
@@ -289,14 +288,14 @@ module proximal_body() {
                 translate([s*2.2, 4, -12])
                     rotate([-90, 0, 0]) cylinder(d = 2, h = 6);
         }
-        // tendon entry hole through the outer (wrist-side) wall,
-        // above the stump
-        translate([-base_w/2 + 2, 0, tendon_entry_z])
-            rotate([0, 90, 0]) cylinder(d = 2.4, h = 10);
+        // tendon entry hole through the wrist-side wall, above the
+        // stump
+        translate([-11, 0, tendon_entry_z])
+            rotate([0, 90, 0]) cylinder(d = 2.4, h = 8);
         plate_pockets();
         // oblique bottom rim: hinged on the palm-back bottom edge,
         // rising towards the palm-front
-        translate([0, base_depth_outer/2, 0]) rotate([-rim_tilt, 0, 0])
+        translate([0, base_d/2, 0]) rotate([-rim_tilt, 0, 0])
             translate([0, 0, -25]) cube([90, 90, 50], center = true);
     }
 }
@@ -326,10 +325,16 @@ module fork_slot() {
 // wrist side) face of the pyramid: origin on the face at y=0,
 // z=plate_z; local +Z = outward normal, local X along the plate
 // width (world Y). The frame leans with the pyramid side.
+// local frame on the fingers-side (s=1) or wrist-side (s=-1) long
+// face of the pyramid: origin on the face at y=0, z=plate_z;
+// local +Z = outward normal, local X along the plate width (which
+// runs palm-front to palm-back). The frame follows the plan-view
+// convergence of the faces, the pyramid taper, and the oblique rim.
 module side_face_frame(s) {
-    lean = s > 0 ? 13 : 25;    // face slope off vertical, degrees
-    xc   = s > 0 ? 13.3 : -12.2;
-    translate([xc, 0, plate_z])
+    plan = atan((base_w_back - base_w_front) / 2 / base_d);
+    lean = s > 0 ? 6 : 14;     // face slope off vertical, degrees
+    translate([s*10.2, 0, plate_z])
+        rotate([0, 0, -s*plan])
         rotate([0, s*(90 - lean), 0])
             // orient the plate upright and align it with the
             // oblique bottom rim
@@ -337,20 +342,16 @@ module side_face_frame(s) {
                 children();
 }
 
-function plate_w_of(s)  = s > 0 ? plate_w_inner : plate_w_outer;
-function slit_w_of(s)   = s > 0 ? slit_w_inner : slit_w_outer;
-
 // flat pockets with screw holes for the TPU sewing plates
 module plate_pockets() {
     for (s = [-1, 1]) side_face_frame(s) {
-        w = plate_w_of(s);
         // flat pocket, 0.8 deep, also shaves the face bulges flush
         translate([0, 0, -0.8]) linear_extrude(8)
-            offset(3) square([w - 6 + 0.6, plate_h - 6 + 0.6],
+            offset(3) square([plate_w - 6 + 0.6, plate_h - 6 + 0.6],
                              center = true);
         // screw pilot holes (self-tapping M2), upper band
         for (h = [-1, 1])
-            translate([h*(w/2 - 3.5), plate_h/2 - 3, -6])
+            translate([h*(plate_w/2 - 3.5), plate_h/2 - 3, -6])
                 cylinder(d = base_hole_d, h = 7);
     }
 }
@@ -476,7 +477,7 @@ module preview_assembly() {
     for (s = [-1, 1])
         color([0.2, 0.2, 0.25])
             side_face_frame(s) translate([0, 0, -0.8])
-                sewing_plate(plate_w_of(s), slit_w_of(s));
+                sewing_plate(plate_w, slit_w);
 }
 
 // all printable parts laid out flat
@@ -489,6 +490,5 @@ module print_plate() {
     translate([35, 25, 0]) disk_plug();
     translate([45, 25, 0]) disk_plug();
     translate([40, -15, 0]) rotate([0, -90, 90]) nail_solid(0);
-    translate([70, 12, 0]) sewing_plate(plate_w_inner, slit_w_inner);
-    translate([70, -12, 0]) sewing_plate(plate_w_outer, slit_w_outer);
+    for (i = [-1, 1]) translate([70, i*12, 0]) sewing_plate(plate_w, slit_w);
 }
