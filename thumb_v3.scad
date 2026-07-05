@@ -49,7 +49,7 @@
 /* [Part Selection] */
 part = "preview"; // [preview, proximal, distal, nail, disk_ring, disk_plug, plate, print_all]
 // hinge flexion angle shown in the preview, degrees
-preview_flex = 0; // [0:90]
+preview_flex = 0; // [0:78]
 // draw coordinate axes in the preview:
 // red = +X (towards fingers), green = +Y (back of hand), blue = +Z (up the thumb)
 show_axes = false;
@@ -144,6 +144,10 @@ clr = 0.15;                             // glued-insert clearance
 barrel_w = hinge_w - 2*(cheek_t + hinge_gap);
 slot_w = barrel_w + 2*hinge_gap;
 pocket_d = barrel_d + 0.7;              // barrel swing pocket
+// proximal cross-section just under the knuckle (slightly larger
+// than the hinge so the cheeks sit flush with the shaft)
+top_w = 13.2;
+top_d = 13.5;
 // proximal loft sections (more = smoother silhouette)
 prox_n = 9;
 // height below which the proximal keeps its full footprint
@@ -165,8 +169,8 @@ if (part == "distal")       distal_body();
 if (part == "nail")         rotate([90, 0, 0]) nail_shape(0);
 if (part == "disk_ring")    disk_ring();
 if (part == "disk_plug")    disk_plug();
-if (part == "plate")        sewing_plate(plate_w, slit_w);
-if (part == "print_all")    print_plate();
+if (part == "plate")        sewing_plate();
+if (part == "print_all")    print_all();
 
 // ===================== HELPERS =====================
 
@@ -200,9 +204,9 @@ module pin_cyl(d, h) {
 // circle under the knuckle. grow < 0 shrinks it for the hollow.
 module prox_section_2d(z, h, grow = 0) {
     t  = ease((z - skirt_h) / (h - skirt_h));
-    wf = lerp(base_w_front, 13.2, t) + 2*grow;  // palm-front width
-    wb = lerp(base_w_back,  13.2, t) + 2*grow;  // palm-back width
-    d  = lerp(base_d,       13.5, t) + 2*grow;  // palm-normal depth
+    wf = lerp(base_w_front, top_w, t) + 2*grow;  // palm-front width
+    wb = lerp(base_w_back,  top_w, t) + 2*grow;  // palm-back width
+    d  = lerp(base_d,       top_d, t) + 2*grow;  // palm-normal depth
     r  = min(lerp(4, 6, t) + grow,
              min(wf, wb, d)/2 - 0.5);           // corner rounding
     translate([lerp(0, hinge_x, t), 0])
@@ -314,12 +318,11 @@ module proximal_body() {
 // hollow interior: open cup from below, tapering with the pyramid
 // and stopping short of the hinge mechanism
 module cavity() {
-    union() {
-        pyramid(-wall, 3.5);
-        // open the bottom
-        translate([0, 0, -4]) linear_extrude(4 + 2*eps)
-            prox_section_2d(0, hinge_z, -wall);
-    }
+    pyramid(-wall, 3.5);
+    // open the bottom (the profile height argument is irrelevant
+    // at z=0, where the section is always the full footprint)
+    translate([0, 0, -4]) linear_extrude(4 + 2*eps)
+        prox_section_2d(0, hinge_z, -wall);
 }
 
 // clears the space between the fork cheeks: a slab above the slot
@@ -330,7 +333,10 @@ module fork_slot() {
             cube([slot_w, knuckle_d + 8, knuckle_d + 6]);
         // flexion-side relief: the same slab rotated palmar-down,
         // letting the distal root sweep below the floor level
-        // through full flexion without hitting the hub blend
+        // through full flexion without hitting the hub blend.
+        // Angle, drop, and overhang are tuned against the
+        // interference sweep in test_mechanism.scad; re-run it
+        // after changing any hinge geometry
         rotate([35, 0, 0])
             translate([-slot_w/2 - 1.3, -knuckle_d/2 - 4, -2.1])
                 cube([slot_w + 2.6, knuckle_d + 8, knuckle_d + 6]);
@@ -345,6 +351,9 @@ module fork_slot() {
 // convergence of the faces, the pyramid taper, and the oblique rim.
 module side_face_frame(s) {
     plan = atan((base_w_back - base_w_front) / 2 / base_d);
+    // the offset and lean angles are fitted by eye to the swept
+    // profile; re-check the pocket seating in renders if the
+    // pyramid slices change
     lean = s > 0 ? 6 : 14;     // face slope off vertical, degrees
     translate([s*10.2, 0, plate_z])
         rotate([0, 0, -s*plan])
@@ -449,20 +458,20 @@ module disk_plug() {
 
 // ===================== SEWING PLATES (TPU) =====================
 
-// w = plate width, sw = slit length. The screw band (upper half)
-// mounts on the pyramid face; the slitted lower half hangs below
-// the base rim so the wrap pulls the base down onto the stump.
-module sewing_plate(w, sw) {
+// the screw band (upper half) mounts on the pyramid face; the
+// slitted lower half hangs below the base rim so the wrap pulls
+// the base down onto the stump.
+module sewing_plate() {
     difference() {
         linear_extrude(plate_t)
-            offset(3) square([w - 6, plate_h - 6], center = true);
+            offset(3) square([plate_w - 6, plate_h - 6], center = true);
         // fabric slit, below the rim
         translate([0, -plate_h/2 + 4, -eps])
             linear_extrude(plate_t + 2*eps)
-                offset(slit_h/2) square([sw - slit_h, eps], center = true);
+                offset(slit_h/2) square([slit_w - slit_h, eps], center = true);
         // screw holes, on-face band
         for (h = [-1, 1])
-            translate([h*(w/2 - 3.5), plate_h/2 - 3, -eps])
+            translate([h*(plate_w/2 - 3.5), plate_h/2 - 3, -eps])
                 cylinder(d = plate_hole_d, h = plate_t + 2*eps);
     }
 }
@@ -495,11 +504,11 @@ module preview_assembly() {
     for (s = [-1, 1])
         color([0.2, 0.2, 0.25])
             side_face_frame(s) translate([0, 0, -0.8])
-                sewing_plate(plate_w, slit_w);
+                sewing_plate();
 }
 
 // all printable parts laid out flat
-module print_plate() {
+module print_all() {
     translate([-25, 0, 0]) proximal_body();
     // distal upright, standing on the barrel (needs a brim)
     translate([15, 0, knuckle_d/2]) distal_body();
@@ -509,5 +518,5 @@ module print_plate() {
     }
     // nail lying flat, dome up (print on a raft)
     translate([40, -15, 1.5]) rotate([90, 0, 0]) nail_shape(0);
-    for (i = [-1, 1]) translate([70, i*12, 0]) sewing_plate(plate_w, slit_w);
+    for (i = [-1, 1]) translate([70, i*12, 0]) sewing_plate();
 }
