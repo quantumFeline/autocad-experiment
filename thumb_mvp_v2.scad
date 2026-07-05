@@ -240,7 +240,8 @@ module proximal_elastic_tunnel() {
 }
 
 // ===================== DISTAL SEGMENT (part 2) =====================
-// Barrel + post-bend arm + dome tip (the old post-bend section, now pivoting)
+// Full-width knuckle wraps around the hinge with a concave circular
+// joint face. The barrel protrudes from the concave face into the fork.
 
 module distal_segment() {
     arm_end_w = arm_bend_w * 0.85;
@@ -248,69 +249,95 @@ module distal_segment() {
     tip_w = arm_end_w * 0.5;
     tip_h = arm_end_h * 0.6;
 
+    clearance_r = hinge_d / 2 + 0.8;
+    knuckle_w = arm_bend_w + 2;
+    knuckle_h = arm_bend_h + 2;
+    blend_z = hinge_d / 2 + 3;
+
     difference() {
         union() {
-            // Barrel (sits between fork prongs)
+            // Body with concave joint face carved out
+            difference() {
+                union() {
+                    // Knuckle section: slightly wider than arm
+                    hull() {
+                        ell(knuckle_w, knuckle_h, 0.1);
+                        translate([0, 0, blend_z])
+                        ell(arm_bend_w, arm_bend_h, 0.1);
+                    }
+                    // Main arm
+                    hull() {
+                        translate([0, 0, blend_z])
+                        ell(arm_bend_w, arm_bend_h, 0.1);
+                        translate([0, 0, hinge_d / 2 + arm_post * 0.3])
+                        ell(arm_end_w, arm_end_h, 0.1);
+                    }
+                    hull() {
+                        translate([0, 0, hinge_d / 2 + arm_post * 0.3])
+                        ell(arm_end_w, arm_end_h, 0.1);
+                        translate([0, 0, hinge_d / 2 + arm_post])
+                        ell(arm_end_w * 0.9, arm_end_h * 0.95, 0.1);
+                    }
+                    // Dome tip
+                    translate([0, 0, hinge_d / 2 + arm_post])
+                    hull() {
+                        ell(arm_end_w * 0.9, arm_end_h * 0.95, 0.1);
+                        translate([0, 0, tip_len])
+                        resize([tip_w, tip_h, tip_h])
+                        sphere(d = 1, $fn = 32);
+                    }
+                }
+                // Concave circular cutout centered on pin axis
+                rotate([0, 90, 0])
+                cylinder(r = clearance_r, h = knuckle_w + 2,
+                         center = true, $fn = 48);
+                // Extension stop: remove body below pin axis
+                translate([0, 0, -(clearance_r + 1)])
+                cube([knuckle_w + 2, knuckle_h + 2,
+                      clearance_r * 2], center = true);
+            }
+            // Barrel added after cutout so it survives
             rotate([0, 90, 0])
             cylinder(d = hinge_d - 0.2, h = barrel_w - 0.2,
                      center = true, $fn = 32);
-
-            // Arm body: from barrel upward to tip
-            hull() {
-                translate([0, 0, hinge_d / 2 - 0.5])
-                ell(barrel_w, hinge_d * 0.85, 0.1);
-
-                translate([0, 0, hinge_d / 2 + arm_post * 0.3])
-                ell(arm_end_w, arm_end_h, 0.1);
-            }
-            hull() {
-                translate([0, 0, hinge_d / 2 + arm_post * 0.3])
-                ell(arm_end_w, arm_end_h, 0.1);
-
-                translate([0, 0, hinge_d / 2 + arm_post])
-                ell(arm_end_w * 0.9, arm_end_h * 0.95, 0.1);
-            }
-
-            // Dome tip
-            translate([0, 0, hinge_d / 2 + arm_post])
-            hull() {
-                ell(arm_end_w * 0.9, arm_end_h * 0.95, 0.1);
-                translate([0, 0, tip_len])
-                resize([tip_w, tip_h, tip_h])
-                sphere(d = 1, $fn = 32);
-            }
         }
 
-        // Pin hole
+        // Pin hole through everything
         rotate([0, 90, 0])
-        cylinder(d = pin_d, h = barrel_w + 2, center = true, $fn = 20);
+        cylinder(d = pin_d, h = knuckle_w + 2, center = true, $fn = 20);
 
-        // Extension stop: flat face toward arm (prevents hyperextension)
+        // Extension stop on barrel
         translate([0, 0, -(hinge_d / 2 + 0.5)])
         cube([barrel_w + 1, hinge_d + 2, hinge_d], center = true);
 
-        // Tendon tunnel (palmar side, -Y)
+        // Tendon tunnel (palmar side, -Y): routed via midpoint
         hull() {
-            translate([0, -(hinge_d / 2 - tunnel_r - 0.3), 0])
+            translate([0, -(clearance_r - 0.3), 0])
             sphere(r = tunnel_r);
-            translate([0, -(arm_end_h * 0.3),
-                       hinge_d / 2 + arm_post + tip_len - tunnel_r])
+            translate([0, -(arm_end_h * 0.15), blend_z + 4])
             sphere(r = tunnel_r);
         }
-        // Enlarged tendon entry at barrel
-        translate([0, -(hinge_d / 2 - tunnel_r + 0.8), 0])
+        hull() {
+            translate([0, -(arm_end_h * 0.15), blend_z + 4])
+            sphere(r = tunnel_r);
+            translate([0, -(arm_end_h * 0.15),
+                       hinge_d / 2 + arm_post + tip_len * 0.7])
+            sphere(r = tunnel_r);
+        }
+        // Entry hole at barrel
+        translate([0, -(clearance_r + 0.5), 0])
         sphere(r = tunnel_r * 1.8);
 
         // Elastic tunnel (dorsal side, +Y)
         hull() {
-            translate([0, hinge_d / 2 - tunnel_r - 0.3, 0])
+            translate([0, clearance_r - 0.3, 0])
             sphere(r = tunnel_r);
-            translate([0, arm_end_h * 0.2,
+            translate([0, arm_end_h * 0.15,
                        hinge_d / 2 + arm_post * 0.5])
             sphere(r = tunnel_r);
         }
-        // Enlarged elastic entry
-        translate([0, hinge_d / 2 - tunnel_r + 0.8, 0])
+        // Entry hole at barrel
+        translate([0, clearance_r + 0.5, 0])
         sphere(r = tunnel_r * 1.5);
     }
 }
