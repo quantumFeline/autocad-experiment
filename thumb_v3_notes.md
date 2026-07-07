@@ -83,6 +83,34 @@ were tuned against this sweep; re-run it after any hinge geometry
 change. Debugging trick: export the intersection STL and read its
 vertex coordinates to locate a graze exactly.
 
+## STL export and printing
+
+`stl/` is gitignored (regenerable); export any part with
+
+    openscad -o stl/<part>.stl -D 'part="<part>"' thumb_v3.scad
+
+All parts verified manifold at $fn=96 (watertight single shells, all
+edges paired, no degenerate faces). `part="print_all"` is the print
+layout: every part rests on z=0 in its print orientation. Per-part
+exports stay in the model frame for assembly and inspection.
+
+Orientation notes:
+
+- **Proximal** rim-down; `print_all` pre-tilts it by `rim_tilt` so
+  the oblique rim sits flat (full rim ring contacts the bed). Fork
+  cheeks print vertical; the swing-pocket bore ceiling bridges
+  ~9.7 mm, fine for FDM; sag on the cavity ceiling is internal and
+  harmless.
+- **Distal** upright on the barrel, tip up; small footprint, use a
+  brim. The neck-to-flare overhang is gradual.
+- **Nail** dome up on a raft (the underside is curved to match the
+  nail pocket).
+- **Disk rings, plugs, plates** flat. Plates in TPU; everything else
+  PETG or PLA.
+
+Materials/colours: bodies + plugs white, nail + rings black, plates
+any (hidden under the wrap).
+
 ## Open items before a test print
 
 1. **Calliper measurements of the stump** (width/depth at base,
@@ -93,14 +121,11 @@ vertex coordinates to locate a graze exactly.
 2. **25 mm side placement**: currently palm-back (`base_w_back`),
    matching the sketch's front view; anatomical argument exists for
    palm-front (thenar bulk). One-line swap if wrong.
-3. **STL export pass**: per-part manifold check + print orientation
-   notes (proximal rim-down needs the oblique rim considered; distal
-   stands on the barrel with a brim; nail on a raft).
-4. **Tendon entry height** (`tendon_entry_z=18`) assumes the stump
+3. **Tendon entry height** (`tendon_entry_z=18`) assumes the stump
    tip stays below ~18 mm; confirm after measuring.
-5. Wrap sewing: pad the inner plate area near the stretching
+4. Wrap sewing: pad the inner plate area near the stretching
    thumb-index skin web (hem or thin foam strip).
-6. Cosmetics accepted for now: visible slot lines and the 0.3 mm stop
+5. Cosmetics accepted for now: visible slot lines and the 0.3 mm stop
    gap at the joint (inherent to a printed pin hinge), faint loft
    facets at draft $fn.
 
