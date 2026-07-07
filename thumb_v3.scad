@@ -148,8 +148,9 @@ pocket_d = barrel_d + 0.7;              // barrel swing pocket
 // than the hinge so the cheeks sit flush with the shaft)
 top_w = 13.2;
 top_d = 13.5;
-// proximal loft sections (more = smoother silhouette)
-prox_n = 9;
+// proximal loft sections (more = smoother silhouette; 9 leaves
+// visible banding on the swept faces)
+prox_n = 15;
 // height below which the proximal keeps its full footprint
 skirt_h = 4;
 // centre height of the sewing plate band: screw band on the face,
