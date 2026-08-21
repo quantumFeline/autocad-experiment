@@ -148,8 +148,9 @@ pocket_d = barrel_d + 0.7;              // barrel swing pocket
 // than the hinge so the cheeks sit flush with the shaft)
 top_w = 13.2;
 top_d = 13.5;
-// proximal loft sections (more = smoother silhouette)
-prox_n = 9;
+// proximal loft sections (more = smoother silhouette; 9 leaves
+// visible banding on the swept faces)
+prox_n = 15;
 // height below which the proximal keeps its full footprint
 skirt_h = 4;
 // centre height of the sewing plate band: screw band on the face,
@@ -507,16 +508,18 @@ module preview_assembly() {
                 sewing_plate();
 }
 
-// all printable parts laid out flat
+// all printable parts laid out in print orientation, resting on z=0
 module print_all() {
-    translate([-25, 0, 0]) proximal_body();
+    // proximal tilted so the oblique bottom rim sits flat on the bed
+    translate([-25, 0, -(base_d/2)*sin(rim_tilt)])
+        rotate([rim_tilt, 0, 0]) proximal_body();
     // distal upright, standing on the barrel (needs a brim)
-    translate([15, 0, knuckle_d/2]) distal_body();
+    translate([15, 0, barrel_d/2]) distal_body();
     for (i = [0, 1]) {
         translate([35 + i*10, 15, 0]) disk_ring();
         translate([35 + i*10, 25, 0]) disk_plug();
     }
-    // nail lying flat, dome up (print on a raft)
-    translate([40, -15, 1.5]) rotate([90, 0, 0]) nail_shape(0);
+    // nail dome up; the underside is curved, so print on a raft
+    translate([40, -15, 1.3]) rotate([90, 0, 0]) nail_shape(0);
     for (i = [-1, 1]) translate([70, i*12, 0]) sewing_plate();
 }

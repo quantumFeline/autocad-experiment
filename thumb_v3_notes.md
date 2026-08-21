@@ -83,6 +83,71 @@ were tuned against this sweep; re-run it after any hinge geometry
 change. Debugging trick: export the intersection STL and read its
 vertex coordinates to locate a graze exactly.
 
+## STL export and printing
+
+`stl/` is gitignored (regenerable). `make stl` exports everything at
+full quality; `make check` runs `scripts/check_manifold.py` on the
+results (watertightness, degenerate faces, per-shell bed contact).
+Single parts: `openscad -o stl/<part>.stl -D 'part="<part>"'
+thumb_v3.scad`.
+
+All parts verified manifold at $fn=96 (watertight single shells, all
+edges paired, no degenerate faces). `part="print_all"` is the print
+layout: every part rests on z=0 in its print orientation. Per-part
+exports stay in the model frame for assembly and inspection.
+
+Orientation notes:
+
+- **Proximal** rim-down; `print_all` pre-tilts it by `rim_tilt` so
+  the oblique rim sits flat (full rim ring contacts the bed). Fork
+  cheeks print vertical; the swing-pocket bore ceiling bridges
+  ~9.7 mm, fine for FDM; sag on the cavity ceiling is internal and
+  harmless.
+- **Distal** upright on the barrel, tip up; small footprint, use a
+  brim. The neck-to-flare overhang is gradual.
+- **Nail** dome up on a raft (the underside is curved to match the
+  nail pocket).
+- **Disk rings, plugs, plates** flat. Plates in TPU; everything else
+  PETG or PLA.
+
+Materials/colours: bodies + plugs white, nail + rings black, plates
+any (hidden under the wrap).
+
+## External review triage (2026-07-07)
+
+Five findings from an outside review, with verdicts:
+
+1. **Tendon crosses the hollow interior** - AGREE, mitigate at
+   assembly. The tendon does run loose across the cavity between the
+   wrist-side entry (z=18) and the channel mouth below the hinge; it
+   can snag on the stump or foam. Recommended fix: glue a short PTFE
+   or Bowden tube between the two holes at assembly time (enlarge the
+   entry to ~4 mm for a 2 mm-ID liner if adopted). A printed closed
+   channel was considered and rejected: it would need support inside
+   the cavity, exactly where supports cannot be removed.
+2. **Faceting at prox_n=9** - AGREE, fixed. Default raised to 15;
+   side-by-side renders confirmed the banding on the swept faces
+   drops markedly. Full-quality proximal export cost rises to ~2 min.
+3. **Distal neck constriction** - DISAGREE as a defect. The neck must
+   stay at barrel width until it clears the swinging fork cheeks; the
+   z=8 flare start was tuned against the interference sweep (earlier,
+   lower flares grazed at flex 65-81). It is the clearance envelope
+   of a fork-and-barrel hinge, same look as Knick's fingers. Only a
+   cheek redesign (thinner cheeks or smaller knuckle) would shrink
+   it, and that trades away pin bearing area.
+4. **"1.1 mm wall at the pin bore"** - REJECT, geometry misread. The
+   pin bore runs along the pin axis, perpendicular to the slot faces,
+   so the material around it is the radial ring of the knuckle disk:
+   (11 - 2.8)/2 = 4.1 mm, about 1.5x the bore diameter. The reviewer
+   computed cheek_t - bore radius, which would apply only to a bore
+   drilled parallel to the cheek face.
+5. **Nail reads as a blister** - AGREE, not yet done. A flatter
+   roof-tile section (large-radius cylinder along the nail length
+   intersected with the dome) would read better than the symmetric
+   ellipsoid. Contained change: only `nail_shape(grow)` needs editing
+   (the pocket derives from the same module, so it follows); verify
+   by render and re-export nail + distal.
+
 ## Open items before a test print
 
 1. **Calliper measurements of the stump** (width/depth at base,
@@ -93,14 +158,15 @@ vertex coordinates to locate a graze exactly.
 2. **25 mm side placement**: currently palm-back (`base_w_back`),
    matching the sketch's front view; anatomical argument exists for
    palm-front (thenar bulk). One-line swap if wrong.
-3. **STL export pass**: per-part manifold check + print orientation
-   notes (proximal rim-down needs the oblique rim considered; distal
-   stands on the barrel with a brim; nail on a raft).
-4. **Tendon entry height** (`tendon_entry_z=18`) assumes the stump
+3. **Tendon entry height** (`tendon_entry_z=18`) assumes the stump
    tip stays below ~18 mm; confirm after measuring.
-5. Wrap sewing: pad the inner plate area near the stretching
+4. Wrap sewing: pad the inner plate area near the stretching
    thumb-index skin web (hem or thin foam strip).
-6. Cosmetics accepted for now: visible slot lines and the 0.3 mm stop
+5. **Tendon liner** (review item 1): PTFE/Bowden tube across the
+   cavity at assembly; widen the entry hole if adopted.
+6. **Nail reshape** (review item 5): roof-tile section instead of the
+   ellipsoid dome.
+7. Cosmetics accepted for now: visible slot lines and the 0.3 mm stop
    gap at the joint (inherent to a printed pin hinge), faint loft
    facets at draft $fn.
 
